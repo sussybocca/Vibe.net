@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibe.net</title>
+<style>
+/* ---------- Global Styles ---------- */
+body { margin:0; font-family:Arial,sans-serif; background:#1b1b1b; color:#fff; }
+button { cursor:pointer; }
+.hidden { display:none; }
+
+/* ---------- Header ---------- */
+#header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#222; border-bottom:2px solid #555; }
+#header h1 { margin:0; font-size:1.5em; }
+#profile-btn { padding:5px 10px; background:#555; border:none; color:#fff; border-radius:5px; }
+
+/* ---------- Pages ---------- */
+.page { padding:20px; }
+#home-page, #profile-page, #editor-page { display:none; }
+#home-page.active, #profile-page.active, #editor-page.active { display:block; }
+
+/* ---------- Server Cards ---------- */
+#server-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:15px; margin-top:20px; }
+.server-card { background:#333; padding:15px; border-radius:10px; transition:0.2s; }
+.server-card:hover { background:#444; }
+.server-card h3 { margin:0 0 10px 0; font-size:1.2em; }
+.server-card p { font-size:0.9em; color:#aaa; }
+.server-card button { margin-top:10px; padding:5px 10px; background:#555; border:none; color:#fff; border-radius:5px; }
+
+/* ---------- Profile Page ---------- */
+#profile-page button { margin-top:10px; padding:5px 10px; background:#555; border:none; color:#fff; border-radius:5px; }
+
+/* ---------- Editor Page ---------- */
+#editor-container { display:flex; flex-direction:column; gap:10px; }
+.editor-wrapper { border:2px solid #555; height:300px; width:100%; }
+#editor-tabs button { margin-right:5px; }
+#file-management button { margin-right:5px; }
+#file-tabs { display:flex; gap:5px; margin-top:5px; }
+#feedback-tab { border:2px solid #555; padding:10px; margin-top:10px; max-width:600px; }
+#feedback-list { max-height:150px; overflow-y:auto; border:1px solid #333; padding:5px; margin-bottom:5px; }
+#feedback-list div { border-bottom:1px solid #333; padding:3px 0; }
+#feedback-input { width:100%; height:50px; background:#222; color:#fff; font-family:monospace; margin-bottom:5px; }
+#feedback-submit { padding:5px 10px; cursor:pointer; }
+
+/* ---------- Plane UI ---------- */
+#plane-ui { display:flex; flex-direction:column; align-items:center; margin-top:10px; }
+#red-buttons { display:flex; gap:10px; margin-bottom:10px; }
+.red-button { width:40px; height:40px; background:red; border:none; border-radius:5px; cursor:pointer; color:white; font-weight:bold; }
+#lever-container button { width:80px; height:40px; cursor:pointer; background:#555; color:white; font-weight:bold; border-radius:5px; }
+.red-button:active { transform:translateY(2px); }
+#lever-container button:active { transform:translateY(5px) rotate(5deg); background-color:#333; transition:all 0.2s; }
+</style>
+
+<!-- Editor CDNs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.41.0/min/vs/loader.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/javascript/javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.24.0/full/pyodide.js"></script>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+    <h1>Vibe.net</h1>
+    <button id="profile-btn">Profile</button>
+</div>
+
+<!-- ---------- Pages ---------- -->
+<div id="home-page" class="page active">
+    <h2>Main Page</h2>
+    <input type="text" id="server-search" placeholder="Search servers..." style="padding:5px; width:100%; max-width:400px;">
+    <div id="server-grid"></div>
+</div>
+
+<div id="profile-page" class="page">
+    <h2>My Profile</h2>
+    <button id="create-server-btn">Create New Server</button>
+    <div id="my-servers" style="margin-top:20px;"></div>
+    <button id="back-home">Back to Home</button>
+</div>
+
+<div id="editor-page" class="page">
+    <h2>Server Editor</h2>
+    <div id="editor-container">
+        <div id="editor-tabs">
+            <button data-editor="monaco">Monaco</button>
+            <button data-editor="codemirror">CodeMirror</button>
+            <button data-editor="vscode">VS Code</button>
+        </div>
+        <div id="file-management">
+            <button id="create-file">New File</button>
+            <button id="delete-file">Delete File</button>
+            <button id="rename-file">Rename File</button>
+        </div>
+        <div id="file-tabs"></div>
+        <div id="monaco-editor" class="editor-wrapper"></div>
+        <div id="codemirror-editor" class="editor-wrapper"></div>
+        <div id="vscode-editor" class="editor-wrapper"></div>
+
+        <!-- Feedback -->
+        <div id="feedback-tab">
+            <h3>Server Feedback</h3>
+            <div id="feedback-list"></div>
+            <textarea id="feedback-input" placeholder="Write your feedback..."></textarea>
+            <button id="feedback-submit">Submit Feedback</button>
+        </div>
+    </div>
+
+    <!-- Plane UI -->
+    <div id="plane-ui">
+        <div id="red-buttons">
+            <button class="red-button">1</button>
+            <button class="red-button">2</button>
+            <button class="red-button">3</button>
+            <button class="red-button">4</button>
+            <button class="red-button">5</button>
+        </div>
+        <div id="lever-container">
+            <button id="run-lever">RUN</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+// -------------------- STATE --------------------
+let servers=[], selectedServer=null, currentFile=null;
+let currentView = "home"; // home | profile | editor
+
+// -------------------- Page Navigation --------------------
+function showPage(view){
+    currentView = view;
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById(view+"-page").classList.add('active');
+    if(view==="home") renderServerGrid();
+    if(view==="profile") renderMyServers();
+    if(view==="editor") renderFileTabs();
+}
+
+// Header profile button
+document.getElementById('profile-btn').onclick = ()=>showPage("profile");
+
+// Back home button
+document.getElementById('back-home').onclick = ()=>showPage("home");
+
+// -------------------- Servers --------------------
+function loadServers(){ servers=JSON.parse(localStorage.getItem('servers'))||[]; }
+function saveServers(){ localStorage.setItem('servers',JSON.stringify(servers)); }
+
+function createServer(name){
+    const newServer = { name:name, files:{"index.html":"<h1>Empty</h1>"} , feedback:[]};
+    servers.push(newServer);
+    saveServers();
+    selectedServer = newServer;
+    currentFile = Object.keys(newServer.files)[0];
+    showPage("editor");
+}
+
+// Render home page grid
+function renderServerGrid(){
+    const grid = document.getElementById('server-grid');
+    grid.innerHTML = "";
+    servers.forEach(s=>{
+        const card = document.createElement('div');
+        card.className = "server-card";
+        card.innerHTML = `<h3>${s.name}</h3><p>${s.feedback?.length||0} feedback</p><button>Open</button>`;
+        card.querySelector('button').onclick = ()=>{
+            selectedServer = s;
+            currentFile = Object.keys(s.files)[0];
+            showPage("editor");
+        };
+        grid.appendChild(card);
+    });
+}
+
+// Create server button
+document.getElementById('create-server-btn').onclick = ()=>{
+    const name = prompt("Server Name?");
+    if(name) createServer(name);
+};
+
+// Render my servers
+function renderMyServers(){
+    const container = document.getElementById('my-servers');
+    container.innerHTML = "";
+    servers.forEach(s=>{
+        const div = document.createElement('div');
+        div.style.marginBottom="5px";
+        div.innerHTML = `<strong>${s.name}</strong> <button>Edit</button>`;
+        div.querySelector('button').onclick = ()=>{
+            selectedServer = s;
+            currentFile = Object.keys(s.files)[0];
+            showPage("editor");
+        };
+        container.appendChild(div);
+    });
+}
+
+// -------------------- Editor / Feedback (use your existing functions) --------------------
+let monacoEditor, cmEditor, vscodeEditor, currentEditor="monaco";
+function initEditors(){
+    require.config({ paths:{'vs':'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.41.0/min/vs'}});
+    require(['vs/editor/editor.main'], function(){
+        monacoEditor=monaco.editor.create(document.getElementById('monaco-editor'), { value:getCurrentFileContent()||"// Monaco Editor", language:'javascript', theme:'vs-dark', automaticLayout:true });
+        monacoEditor.onDidChangeModelContent(()=>setCurrentFileContent(monacoEditor.getValue()));
+        showEditor("monaco");
+    });
+    cmEditor=CodeMirror(document.getElementById('codemirror-editor'), { value:getCurrentFileContent()||"// CodeMirror Editor", mode:'javascript', lineNumbers:true, theme:'default' });
+    cmEditor.on('change',()=>setCurrentFileContent(cmEditor.getValue()));
+    const textarea=document.createElement('textarea'); textarea.style.width='100%'; textarea.style.height='100%'; textarea.style.background='#222'; textarea.style.color='#fff'; textarea.style.fontFamily='monospace'; textarea.value=getCurrentFileContent()||"// VS Code"; textarea.addEventListener('input',()=>setCurrentFileContent(textarea.value));
+    document.getElementById('vscode-editor').appendChild(textarea); vscodeEditor=textarea;
+    document.querySelectorAll('#editor-tabs button').forEach(btn=>btn.addEventListener('click',()=>{ currentEditor=btn.dataset.editor; showEditor(currentEditor); }));
+}
+function showEditor(name){ document.getElementById('monaco-editor').style.display=name==='monaco'?'block':'none'; document.getElementById('codemirror-editor').style.display=name==='codemirror'?'block':'none'; document.getElementById('vscode-editor').style.display=name==='vscode'?'block':'none'; }
+function getCurrentFileContent(){ return selectedServer&&currentFile?selectedServer.files[currentFile]:""; }
+function setCurrentFileContent(content){ if(selectedServer&&currentFile){ selectedServer.files[currentFile]=content; saveServers(); } }
+function renderFileTabs(){ const container=document.getElementById('file-tabs'); container.innerHTML=""; if(!selectedServer) return; Object.keys(selectedServer.files).forEach(f=>{ const btn=document.createElement('button'); btn.textContent=f; if(f===currentFile) btn.style.backgroundColor="#555"; btn.onclick=()=>{ currentFile=f; showEditor(currentEditor); initEditors(); renderFeedback(); }; container.appendChild(btn); }); }
+
+// File management
+document.getElementById('create-file').onclick=()=>{ const name=prompt("File name?"); if(name && selectedServer){ selectedServer.files[name]="// New file"; currentFile=name; saveServers(); renderFileTabs(); initEditors(); renderFeedback(); } };
+document.getElementById('delete-file').onclick=()=>{ if(selectedServer && currentFile && confirm("Delete current file?")){ delete selectedServer.files[currentFile]; currentFile=Object.keys(selectedServer.files)[0]; saveServers(); renderFileTabs(); initEditors(); renderFeedback(); } };
+document.getElementById('rename-file').onclick=()=>{ if(selectedServer && currentFile){ const name=prompt("New name?"); if(name){ selectedServer.files[name]=selectedServer.files[currentFile]; delete selectedServer.files[currentFile]; currentFile=name; saveServers(); renderFileTabs(); initEditors(); renderFeedback(); } } };
+
+// Feedback
+function renderFeedback(){ if(!selectedServer) return; const list = document.getElementById('feedback-list'); list.innerHTML=""; selectedServer.feedback?.forEach(f=>{ const div=document.createElement('div'); div.textContent=f; list.appendChild(div); }); }
+document.getElementById('feedback-submit').onclick = ()=>{ const input = document.getElementById('feedback-input'); const text = input.value.trim(); if(text){ if(!selectedServer.feedback) selectedServer.feedback=[]; selectedServer.feedback.push(text); saveServers(); input.value=""; renderFeedback(); } };
+
+// Plane UI
+let redPressed=0;
+document.querySelectorAll('.red-button').forEach(b=>b.onclick=()=>{ b.disabled=true; redPressed++; });
+document.getElementById('run-lever').onclick=()=>{ if(redPressed>=5){ autoRunServer(); } else { alert("Press all 5 buttons first"); } };
+function autoRunServer(){ if(!selectedServer) return; document.head.innerHTML=""; document.body.innerHTML=""; if(selectedServer.files["style.css"]){ const s=document.createElement('style'); s.textContent=selectedServer.files["style.css"]; document.head.appendChild(s); } document.body.innerHTML=selectedServer.files["index.html"]||"<h1>Empty</h1>"; if(selectedServer.files["app.js"]){ const s=document.createElement('script'); s.textContent=selectedServer.files["app.js"]; document.body.appendChild(s); } }
+
+// Init
+loadServers(); renderServerGrid(); initEditors(); renderFileTabs(); renderFeedback();
+</script>
+</body>
+</html>
