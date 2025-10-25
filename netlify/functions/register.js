@@ -1,41 +1,26 @@
-import nodemailer from "nodemailer";
-import { Client } from "@neondatabase/serverless";
+import 'dotenv/config';
+import { neon } from '@neondatabase/serverless';
 
-const db = new Client({ connectionString: process.env.DATABASE_URL });
-await db.connect();
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-const pendingVerifications = {};
-
-export async function handler(event) {
-  if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method Not Allowed" };
-  const { email, username } = JSON.parse(event.body);
+export async function handler(event, context) {
+  const db = neon(process.env.DATABASE_URL);
 
   try {
-    const existing = await db.query("SELECT id FROM users WHERE email = $1", [email]);
-    if (existing.rows.length > 0) return { statusCode: 400, body: JSON.stringify({ error: "User exists" }) };
+    const { email, username } = JSON.parse(event.body);
 
-    const codes = Array.from({ length: 10 }, () => Math.random().toString(36).substring(2, 8).toUpperCase());
-    const correctCode = codes[Math.floor(Math.random() * codes.length)];
+    if (!email || !username) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Email and username required" }) };
+    }
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Server Vibe Verification Codes",
-      text: `Here are your codes: ${codes.join(", ")}\nOne is correct.`,
-    });
+    const existing = await db.sql`SELECT * FROM users WHERE email = ${email}`;
+    if (existing.length > 0) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Email already registered" }) };
+    }
 
-    pendingVerifications[email] = { code: correctCode, username };
-    return { statusCode: 200, body: JSON.stringify({ success: true, message: "Verification email sent!" }) };
+    const result = await db.sql`INSERT INTO users (email, username) VALUES (${email}, ${username}) RETURNING *`;
+
+    return { statusCode: 200, body: JSON.stringify({ success: true, user: result[0] }) };
   } catch (err) {
     console.error(err);
-    return { statusCode: 500, body: JSON.stringify({ error: "Failed to send email" }) };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 }
