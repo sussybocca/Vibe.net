@@ -27,11 +27,9 @@ export async function handler(event, context) {
       RETURNING *
     `;
 
-    // Send verification email
+    // Use EMAIL_USER and EMAIL_PASS directly from environment
     const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: process.env.EMAIL_PORT,
-      secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
+      service: 'gmail', // or another service
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -52,3 +50,4 @@ export async function handler(event, context) {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 }
+
