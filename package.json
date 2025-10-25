@@ -2,15 +2,7 @@
   "name": "server.vibe",
   "version": "1.0.0",
   "description": "Server Vibe backend for Neon + Netlify setup",
-  "main": "index.js",
   "type": "module",
-  "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
     "cors": "^2.8.5",
