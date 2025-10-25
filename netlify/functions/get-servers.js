@@ -1,19 +1,20 @@
-import { Client } from "@neondatabase/serverless";
+import 'dotenv/config';
+import { neon } from '@neondatabase/serverless';
 
-const db = new Client({ connectionString: process.env.DATABASE_URL });
-await db.connect();
+export async function handler(event, context) {
+  const db = neon(process.env.DATABASE_URL);
 
-export async function handler() {
   try {
-    const result = await db.query(`
-      SELECT s.*, u.username AS owner_name
-      FROM servers s
-      JOIN users u ON s.owner_id = u.id
-      ORDER BY s.created_at DESC
-    `);
-    return { statusCode: 200, body: JSON.stringify(result.rows) };
+    const servers = await db.sql`
+      SELECT servers.*, users.username AS owner_name
+      FROM servers
+      JOIN users ON users.id = servers.owner_id
+      ORDER BY servers.created_at DESC
+    `;
+
+    return { statusCode: 200, body: JSON.stringify(servers) };
   } catch (err) {
     console.error(err);
-    return { statusCode: 500, body: JSON.stringify({ error: "Failed to fetch servers" }) };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 }
