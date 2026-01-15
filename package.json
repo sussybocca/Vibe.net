@@ -1,16 +1,42 @@
 {
-  "name": "server.vibe",
+  "name": "vibe-net",
   "version": "1.0.0",
-  "description": "Server Vibe backend for Neon + Netlify setup",
-  "type": "module",
+  "description": "Vibe.net - Advanced Server Creation Platform",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev",
+    "build": "echo 'No build step required for static files'",
+    "deploy": "vercel --prod",
+    "lint": "eslint . --ext .js",
+    "test": "echo 'No tests configured'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.6.1",
-    "express": "^5.1.0",
-    "neon": "^2.0.0",
-    "netlify-cli": "^23.9.5",
-    "nodemailer": "^6.9.4",
-    "pg": "^8.16.3"
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@vercel/node": "^3.0.0",
+    "eslint": "^8.50.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.28.1"
+  },
+  "keywords": [
+    "server",
+    "hosting",
+    "editor",
+    "website-builder",
+    "supabase",
+    "vercel"
+  ],
+  "author": "Vibe.net Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/vibe-net.git"
   }
 }
