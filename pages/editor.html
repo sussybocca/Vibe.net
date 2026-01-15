@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibe.net Server Editor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .editor-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: #1e293b;
+            border-right: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .server-header {
+            padding: 20px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .server-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #f8fafc;
+            margin-bottom: 10px;
+        }
+
+        .server-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .file-explorer {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .explorer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .explorer-header h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: #94a3b8;
+            letter-spacing: 1px;
+        }
+
+        .file-tree {
+            list-style: none;
+        }
+
+        .file-item {
+            padding: 10px 12px;
+            margin: 2px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+        }
+
+        .file-item:hover {
+            background: #334155;
+        }
+
+        .file-item.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .file-item-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-actions {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .file-item:hover .file-actions {
+            opacity: 1;
+        }
+
+        .file-btn {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .file-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .action-buttons {
+            padding: 20px;
+            border-top: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 16px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #475569;
+            color: #cbd5e1;
+        }
+
+        .btn-outline:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+
+        /* Main Editor */
+        .main-editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-tabs {
+            display: flex;
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-right: 1px solid #334155;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: #334155;
+            color: #e2e8f0;
+        }
+
+        .tab.active {
+            background: #0f172a;
+            color: white;
+            border-bottom: 2px solid #3b82f6;
+        }
+
+        .tab-close {
+            margin-left: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .tab:hover .tab-close {
+            opacity: 1;
+        }
+
+        .editor-area {
+            flex: 1;
+            display: flex;
+        }
+
+        .code-editor {
+            flex: 1;
+            position: relative;
+        }
+
+        #code-editor {
+            width: 100%;
+            height: 100%;
+            background: #0f172a;
+            color: #e2e8f0;
+            border: none;
+            padding: 20px;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+        }
+
+        .preview-container {
+            flex: 1;
+            display: none;
+            border-left: 1px solid #334155;
+        }
+
+        .preview-container.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-toolbar {
+            padding: 12px 20px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-toolbar h3 {
+            color: #0f172a;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .preview-frame {
+            flex: 1;
+            border: none;
+            background: white;
+        }
+
+        .status-bar {
+            padding: 8px 20px;
+            background: #1e293b;
+            border-top: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid #475569;
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+            color: #f8fafc;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            background: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 1rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 16px 24px;
+            background: #10b981;
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            display: none;
+            z-index: 1001;
+        }
+
+        .toast.show {
+            display: flex;
+        }
+
+        .toast.error {
+            background: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <i id="toast-icon" class="fas fa-check-circle"></i>
+        <span id="toast-message">Operation successful</span>
+    </div>
+
+    <!-- Publish Modal -->
+    <div class="modal-overlay" id="publish-modal">
+        <div class="modal">
+            <h2>Publish Server</h2>
+            <div class="form-group">
+                <label for="publish-name">Server Name *</label>
+                <input type="text" id="publish-name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="publish-desc">Description</label>
+                <textarea id="publish-desc" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="publish-category">Category</label>
+                <select id="publish-category" class="form-control">
+                    <option value="general">General</option>
+                    <option value="game">Game</option>
+                    <option value="tool">Tool</option>
+                    <option value="social">Social</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" id="cancel-publish">Cancel</button>
+                <button class="btn btn-success" id="confirm-publish">Publish</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Editor -->
+    <div class="editor-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="server-header">
+                <div class="server-title" id="server-title">Loading...</div>
+                <div class="server-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-eye"></i>
+                        <span id="server-views">0 views</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-code"></i>
+                        <span id="server-files">0 files</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="file-explorer">
+                <div class="explorer-header">
+                    <h3>Files</h3>
+                    <button class="btn btn-outline" id="btn-new-file" style="padding: 4px 8px;">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <ul class="file-tree" id="file-tree">
+                    <!-- Files loaded from API -->
+                </ul>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="btn-run">
+                    <i class="fas fa-play"></i> Run Server
+                </button>
+                <button class="btn btn-success" id="btn-publish">
+                    <i class="fas fa-rocket"></i> Publish
+                </button>
+                <button class="btn btn-outline" id="btn-save">
+                    <i class="fas fa-save"></i> Save
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Editor Area -->
+        <div class="main-editor">
+            <div class="editor-tabs" id="editor-tabs">
+                <!-- Tabs loaded from API -->
+            </div>
+
+            <div class="editor-area">
+                <div class="code-editor" id="code-editor">
+                    <textarea id="code-editor-text"></textarea>
+                </div>
+                <div class="preview-container" id="preview-container">
+                    <div class="preview-toolbar">
+                        <h3>Preview</h3>
+                        <button class="btn btn-outline" id="btn-refresh">
+                            <i class="fas fa-redo"></i> Refresh
+                        </button>
+                    </div>
+                    <iframe class="preview-frame" id="preview-frame"></iframe>
+                </div>
+            </div>
+
+            <div class="status-bar">
+                <div id="status-message">Ready</div>
+                <div id="cursor-position">Ln 1, Col 1</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== API CONFIG ====================
+        const API_BASE = '/api'; // Vercel functions are at /api/*
+
+        // ==================== STATE ====================
+        let currentServer = null;
+        let currentFile = '/index.html';
+        let files = {};
+        let user = null;
+        let unsavedChanges = false;
+
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Get user from localStorage (should be set after login)
+            user = JSON.parse(localStorage.getItem('vibe_user'));
+            if (!user) {
+                showToast('Please login first', 'error');
+                setTimeout(() => window.location.href = '/', 2000);
+                return;
+            }
+
+            // Check if editing existing server
+            const urlParams = new URLSearchParams(window.location.search);
+            const serverId = urlParams.get('id');
+            
+            if (serverId) {
+                await loadServerFromAPI(serverId);
+            } else {
+                await createNewServer();
+            }
+
+            setupEventListeners();
+        });
+
+        // ==================== API FUNCTIONS ====================
+        async function loadServerFromAPI(serverId) {
+            try {
+                showStatus('Loading server...');
+                
+                // Call Vercel function: /api/get-server
+                const response = await fetch(`${API_BASE}/get-server?id=${serverId}`);
+                if (!response.ok) throw new Error('Failed to load server');
+                
+                const data = await response.json();
+                
+                // Update state with real data from Supabase
+                currentServer = {
+                    id: data.server.id,
+                    name: data.server.name,
+                    slug: data.server.slug,
+                    views: data.server.views || 0
+                };
+                
+                // Files from server_files table
+                files = data.files || {};
+                
+                // If no files exist, create defaults
+                if (Object.keys(files).length === 0) {
+                    files = {
+                        '/index.html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>New Server</title>\n</head>\n<body>\n    <h1>Welcome to my server!</h1>\n</body>\n</html>',
+                        '/style.css': 'body { font-family: Arial, sans-serif; }',
+                        '/script.js': 'console.log("Server loaded");'
+                    };
+                }
+                
+                updateUI();
+                loadFile(currentFile);
+                showToast('Server loaded successfully');
+                
+            } catch (error) {
+                console.error('Load error:', error);
+                showToast(`Failed to load server: ${error.message}`, 'error');
+                // Fallback to new server
+                await createNewServer();
+            } finally {
+                showStatus('Ready');
+            }
+        }
+
+        async function createNewServer() {
+            currentServer = {
+                id: null,
+                name: 'New Server',
+                slug: null,
+                views: 0
+            };
+            
+            files = {
+                '/index.html': `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Server | Vibe.net</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to My Server!</h1>
+        <p>Edit this HTML to customize your server.</p>
+        <button onclick="alert('Hello!')">Click Me</button>
+    </div>
+    <script src="/script.js"></script>
+</body>
+</html>`,
+                '/style.css': `body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+h1 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+p {
+    color: #666;
+    margin-bottom: 30px;
+}
+
+button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+button:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+}`,
+                '/script.js': `// Server JavaScript
+console.log('Server loaded!');
+
+// Add interactivity
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM ready');
+    
+    // You can add more JavaScript here
+    // This runs when your server page loads
+});`
+            };
+            
+            updateUI();
+            loadFile(currentFile);
+        }
+
+        async function saveServerToAPI() {
+            try {
+                showStatus('Saving...');
+                
+                if (!currentServer.id) {
+                    // First save - create new server
+                    await publishServer();
+                    return;
+                }
+                
+                // Update existing server (would need an update-server API endpoint)
+                // For now, we'll just update locally
+                showToast('Saved locally (update API endpoint needed)', 'info');
+                unsavedChanges = false;
+                
+            } catch (error) {
+                console.error('Save error:', error);
+                showToast(`Save failed: ${error.message}`, 'error');
+            } finally {
+                showStatus('Ready');
+            }
+        }
+
+        async function publishServer() {
+            try {
+                showStatus('Publishing...');
+                
+                const name = document.getElementById('publish-name').value;
+                const description = document.getElementById('publish-desc').value;
+                const category = document.getElementById('publish-category').value;
+                
+                if (!name.trim()) {
+                    throw new Error('Server name is required');
+                }
+                
+                // Call Vercel function: /api/publish-server
+                const response = await fetch(`${API_BASE}/publish-server`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ownerId: user.id,
+                        name: name,
+                        description: description,
+                        html: files['/index.html'] || '',
+                        css: files['/style.css'] || '',
+                        js: files['/script.js'] || '',
+                        additionalFiles: files,
+                        isPublic: true,
+                        category: category
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Publish failed');
+                }
+                
+                const data = await response.json();
+                
+                // Update server with new ID and slug
+                currentServer.id = data.serverId;
+                currentServer.slug = data.slug;
+                currentServer.name = name;
+                currentServer.published = true;
+                
+                // Update URL
+                const url = new URL(window.location);
+                url.searchParams.set('id', currentServer.id);
+                window.history.replaceState({}, '', url);
+                
+                updateUI();
+                hideModal('publish-modal');
+                showToast('Server published successfully!');
+                
+                // Open server in new tab
+                setTimeout(() => {
+                    window.open(`/server/${data.slug}`, '_blank');
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Publish error:', error);
+                showToast(`Publish failed: ${error.message}`, 'error');
+            } finally {
+                showStatus('Ready');
+            }
+        }
+
+        // ==================== UI FUNCTIONS ====================
+        function updateUI() {
+            document.getElementById('server-title').textContent = currentServer.name;
+            document.getElementById('server-views').textContent = `${currentServer.views} views`;
+            document.getElementById('server-files').textContent = `${Object.keys(files).length} files`;
+            
+            // Update file tree
+            const fileTree = document.getElementById('file-tree');
+            fileTree.innerHTML = '';
+            
+            Object.keys(files).forEach(filePath => {
+                const fileName = filePath.split('/').pop();
+                const isActive = filePath === currentFile;
+                
+                const li = document.createElement('li');
+                li.className = `file-item ${isActive ? 'active' : ''}`;
+                li.dataset.path = filePath;
+                li.innerHTML = `
+                    <div class="file-item-left">
+                        <i class="${getFileIcon(fileName)}"></i>
+                        <span>${fileName}</span>
+                    </div>
+                    ${filePath !== '/index.html' ? 
+                        `<div class="file-actions">
+                            <button class="file-btn" onclick="deleteFile('${filePath}')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>` : ''
+                    }
+                `;
+                
+                li.addEventListener('click', (e) => {
+                    if (!e.target.closest('.file-actions')) {
+                        switchFile(filePath);
+                    }
+                });
+                
+                fileTree.appendChild(li);
+            });
+            
+            // Update tabs
+            updateTabs();
+        }
+
+        function getFileIcon(fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            const icons = {
+                'html': 'fab fa-html5',
+                'htm': 'fab fa-html5',
+                'css': 'fab fa-css3-alt',
+                'js': 'fab fa-js',
+                'json': 'fas fa-code',
+                'md': 'fas fa-markdown',
+                'txt': 'fas fa-file-alt'
+            };
+            return icons[ext] || 'fas fa-file';
+        }
+
+        function updateTabs() {
+            const tabsContainer = document.getElementById('editor-tabs');
+            tabsContainer.innerHTML = '';
+            
+            Object.keys(files).forEach(filePath => {
+                const fileName = filePath.split('/').pop();
+                const isActive = filePath === currentFile;
+                
+                const tab = document.createElement('button');
+                tab.className = `tab ${isActive ? 'active' : ''}`;
+                tab.dataset.path = filePath;
+                tab.innerHTML = `
+                    <i class="${getFileIcon(fileName)}"></i>
+                    <span>${fileName}</span>
+                    ${filePath !== '/index.html' ? 
+                        '<span class="tab-close" onclick="closeTab(\'' + filePath + '\')"><i class="fas fa-times"></i></span>' : ''
+                    }
+                `;
+                
+                tab.addEventListener('click', (e) => {
+                    if (!e.target.closest('.tab-close')) {
+                        switchFile(filePath);
+                    }
+                });
+                
+                tabsContainer.appendChild(tab);
+            });
+        }
+
+        function loadFile(filePath) {
+            currentFile = filePath;
+            const content = files[filePath] || '';
+            document.getElementById('code-editor-text').value = content;
+            
+            updateUI();
+            updatePreview();
+        }
+
+        function switchFile(filePath) {
+            // Save current file content
+            files[currentFile] = document.getElementById('code-editor-text').value;
+            
+            // Load new file
+            loadFile(filePath);
+        }
+
+        function deleteFile(filePath) {
+            if (filePath === '/index.html') {
+                showToast('Cannot delete index.html', 'error');
+                return;
+            }
+            
+            if (!confirm(`Delete ${filePath}?`)) return;
+            
+            delete files[filePath];
+            
+            // If deleting current file, switch to index.html
+            if (currentFile === filePath) {
+                loadFile('/index.html');
+            }
+            
+            updateUI();
+            showToast(`Deleted ${filePath}`);
+        }
+
+        function closeTab(filePath) {
+            if (filePath === '/index.html') return;
+            deleteFile(filePath);
+        }
+
+        function updatePreview() {
+            const html = files['/index.html'] || '';
+            const css = files['/style.css'] || '';
+            const js = files['/script.js'] || '';
+            
+            const fullHTML = html.replace('</head>', 
+                `<style>${css}</style></head>`).replace('</body>',
+                `<script>${js}</script></body>`);
+            
+            const iframe = document.getElementById('preview-frame');
+            iframe.srcdoc = fullHTML;
+        }
+
+        // ==================== UTILITIES ====================
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const text = document.getElementById('toast-message');
+            
+            toast.className = `toast ${type}`;
+            icon.className = type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-check-circle';
+            text.textContent = message;
+            
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function showStatus(message) {
+            document.getElementById('status-message').textContent = message;
+        }
+
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // ==================== EVENT LISTENERS ====================
+        function setupEventListeners() {
+            // Code editor changes
+            document.getElementById('code-editor-text').addEventListener('input', (e) => {
+                unsavedChanges = true;
+                files[currentFile] = e.target.value;
+                updatePreview();
+            });
+
+            // Publish button
+            document.getElementById('btn-publish').addEventListener('click', () => {
+                document.getElementById('publish-name').value = currentServer.name;
+                showModal('publish-modal');
+            });
+
+            // Save button
+            document.getElementById('btn-save').addEventListener('click', saveServerToAPI);
+
+            // Run button
+            document.getElementById('btn-run').addEventListener('click', () => {
+                document.getElementById('preview-container').classList.add('active');
+                updatePreview();
+            });
+
+            // Refresh preview
+            document.getElementById('btn-refresh').addEventListener('click', updatePreview);
+
+            // New file button
+            document.getElementById('btn-new-file').addEventListener('click', () => {
+                const fileName = prompt('Enter file path (e.g., /script2.js):');
+                if (fileName && fileName.startsWith('/')) {
+                    files[fileName] = '';
+                    updateUI();
+                    loadFile(fileName);
+                }
+            });
+
+            // Publish modal buttons
+            document.getElementById('cancel-publish').addEventListener('click', () => {
+                hideModal('publish-modal');
+            });
+
+            document.getElementById('confirm-publish').addEventListener('click', publishServer);
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === 's') {
+                        e.preventDefault();
+                        saveServerToAPI();
+                    } else if (e.key === 'p') {
+                        e.preventDefault();
+                        document.getElementById('btn-publish').click();
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
