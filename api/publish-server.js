@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields: ownerId and name' });
     }
 
-    // 1. Get user info
+    // Get user info
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('username, email')
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
 
     if (userError) throw userError;
 
-    // 2. Create server in servers table
+    // Create server in servers table
     const { data: server, error: serverError } = await supabase
       .from('servers')
       .insert([{
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
 
     if (serverError) throw serverError;
 
-    // 3. Create server files
+    // Create server files
     const filesToInsert = [
       { server_id: server.id, path: '/index.html', content: html || '<html><body><h1>New Server</h1></body></html>' },
       { server_id: server.id, path: '/style.css', content: css || '' },
@@ -72,7 +72,7 @@ export default async function handler(req, res) {
 
     if (filesError) throw filesError;
 
-    // 4. Create page entry for serving
+    // Create page entry for serving
     const slug = name.toLowerCase()
       .replace(/[^a-z0-9]/g, '-')
       .replace(/-+/g, '-')
@@ -103,16 +103,6 @@ export default async function handler(req, res) {
       }]);
 
     if (pageError) throw pageError;
-
-    // 5. Create initial analytics entry
-    await supabase
-      .from('analytics')
-      .insert([{
-        server_id: server.id,
-        date: new Date().toISOString().split('T')[0],
-        views: 0,
-        unique_visitors: 0
-      }]);
 
     return res.status(200).json({
       success: true,
