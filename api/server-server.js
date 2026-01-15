@@ -17,7 +17,15 @@ export default async function handler(req, res) {
       .single();
 
     if (pageError || !page) {
-      return res.status(404).send('Server not found');
+      return res.status(404).send(`
+        <html>
+          <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+            <h1>Server not found</h1>
+            <p>The server you're looking for doesn't exist or has been removed.</p>
+            <a href="/" style="color: #3b82f6;">Back to Vibe.net</a>
+          </body>
+        </html>
+      `);
     }
 
     const content = JSON.parse(page.content);
@@ -37,13 +45,6 @@ export default async function handler(req, res) {
       .update({ views: supabase.raw('views + 1') })
       .eq('id', serverId);
 
-    // Update analytics
-    const today = new Date().toISOString().split('T')[0];
-    await supabase.rpc('increment_server_views', {
-      server_id_param: serverId,
-      date_param: today
-    });
-
     // Get HTML content
     const htmlFile = files.find(f => f.path === '/index.html');
     const cssFile = files.find(f => f.path === '/style.css');
@@ -60,24 +61,30 @@ export default async function handler(req, res) {
       html = html.replace('</body>', `<script>${jsFile.content}</script></body>`);
     }
 
-    // Add view counter if not present
-    if (!html.includes('data-vibe-server')) {
-      html = html.replace('</body>', `
-        <div style="position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; z-index: 9999;">
-          <i class="fas fa-eye"></i> ${page.views || 0} views | Powered by Vibe.net
-        </div>
-        <script>
-          // Vibe.net Server Analytics
-          fetch('/api/server-view?slug=${slug}', { method: 'POST' });
-        </script>
-      </body>`);
-    }
+    // Add Vibe.net footer
+    html = html.replace('</body>', `
+      <div style="position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; z-index: 9999;">
+        <i class="fas fa-eye"></i> ${page.views || 0} views | Powered by <a href="/" style="color: #3b82f6;">Vibe.net</a>
+      </div>
+      <script>
+        // Vibe.net Server Analytics
+        fetch('/api/server-view?slug=${slug}', { method: 'POST' });
+      </script>
+    </body>`);
 
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
 
   } catch (error) {
     console.error('Serve server error:', error);
-    res.status(500).send('Error loading server');
+    res.status(500).send(`
+      <html>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+          <h1>Error loading server</h1>
+          <p>Something went wrong while loading this server.</p>
+          <a href="/" style="color: #3b82f6;">Back to Vibe.net</a>
+        </body>
+      </html>
+    `);
   }
 }
