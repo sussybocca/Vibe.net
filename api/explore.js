@@ -50,10 +50,6 @@ export default async function handler(req, res) {
       case 'popular':
         query = query.order('views', { ascending: false });
         break;
-      case 'trending':
-        // Complex trending algorithm would go here
-        query = query.order('views', { ascending: false });
-        break;
       case 'newest':
       default:
         query = query.order('created_at', { ascending: false });
@@ -79,8 +75,7 @@ export default async function handler(req, res) {
         views: page.views || 0,
         created_at: page.created_at,
         owner: page.profiles || { username: 'Anonymous' },
-        image_url: page.image_url,
-        server_data: content
+        image_url: page.image_url
       };
     });
 
