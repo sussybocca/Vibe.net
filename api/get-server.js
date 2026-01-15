@@ -1,66 +1,76 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_ANON_KEY
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end()
+    return res.status(200).end();
   }
 
-  const { slug } = req.query
+  const { id } = req.query;
 
   try {
-    // Get page data
-    const { data: page, error: pageError } = await supabase
-      .from('pages')
-      .select('*')
-      .eq('slug', slug)
-      .eq('content_type', 'server')
-      .single()
+    // Get server info
+    const { data: server, error: serverError } = await supabase
+      .from('servers')
+      .select(`
+        *,
+        profiles!servers_owner_id_fkey (
+          username,
+          avatar_url
+        )
+      `)
+      .eq('id', id)
+      .single();
 
-    if (pageError || !page) {
-      return res.status(404).json({ error: 'Server not found' })
+    if (serverError || !server) {
+      return res.status(404).json({ error: 'Server not found' });
     }
-
-    const content = JSON.parse(page.content)
-    const serverId = content.server_id
 
     // Get server files
     const { data: files, error: filesError } = await supabase
       .from('server_files')
       .select('*')
-      .eq('server_id', serverId)
+      .eq('server_id', id)
+      .order('path');
 
-    if (filesError) throw filesError
+    if (filesError) throw filesError;
 
-    // Increment view count
-    await supabase
-      .from('servers')
-      .update({ views: supabase.raw('views + 1') })
-      .eq('id', serverId)
+    // Format files object
+    const filesObj = {};
+    files.forEach(file => {
+      filesObj[file.path] = file.content;
+    });
+
+    // Get page slug
+    const { data: page } = await supabase
+      .from('pages')
+      .select('slug')
+      .eq('content_type', 'server')
+      .contains('content', { server_id: parseInt(id) })
+      .single();
 
     return res.status(200).json({
       server: {
-        id: serverId,
-        name: page.title,
-        slug: page.slug,
-        created_at: content.created_at
+        id: server.id,
+        name: server.name,
+        description: server.description,
+        slug: page?.slug,
+        views: server.views,
+        created_at: server.created_at,
+        owner: server.profiles
       },
-      files: files.reduce((acc, file) => {
-        acc[file.path] = file.content
-        return acc
-      }, {}),
-      raw: content
-    })
+      files: filesObj
+    });
 
   } catch (error) {
-    console.error('Get server error:', error)
-    return res.status(500).json({ error: error.message })
+    console.error('Get server error:', error);
+    return res.status(500).json({ error: error.message });
   }
 }
