@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vibe.net Server Editor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/theme/material-darker.min.css">
     <style>
         * {
             margin: 0;
@@ -44,6 +46,14 @@
             font-weight: 600;
             color: #f8fafc;
             margin-bottom: 10px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .server-title:hover {
+            background: rgba(255,255,255,0.05);
         }
 
         .server-meta {
@@ -220,38 +230,20 @@
             border-bottom: 2px solid #3b82f6;
         }
 
-        .tab-close {
-            margin-left: 8px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .tab:hover .tab-close {
-            opacity: 1;
-        }
-
         .editor-area {
             flex: 1;
             display: flex;
         }
 
-        .code-editor {
+        .code-editor-container {
             flex: 1;
             position: relative;
         }
 
-        #code-editor {
-            width: 100%;
-            height: 100%;
-            background: #0f172a;
-            color: #e2e8f0;
-            border: none;
-            padding: 20px;
-            font-family: 'Cascadia Code', 'Consolas', monospace;
+        .CodeMirror {
+            height: 100% !important;
             font-size: 14px;
             line-height: 1.6;
-            resize: none;
-            outline: none;
         }
 
         .preview-container {
@@ -372,6 +364,7 @@
             gap: 12px;
             display: none;
             z-index: 1001;
+            animation: slideIn 0.3s ease;
         }
 
         .toast.show {
@@ -380,6 +373,21 @@
 
         .toast.error {
             background: #ef4444;
+        }
+
+        .toast.warning {
+            background: #f59e0b;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
     </style>
 </head>
@@ -409,6 +417,8 @@
                     <option value="game">Game</option>
                     <option value="tool">Tool</option>
                     <option value="social">Social</option>
+                    <option value="art">Art & Design</option>
+                    <option value="education">Education</option>
                 </select>
             </div>
             <div class="modal-actions">
@@ -423,7 +433,7 @@
         <!-- Sidebar -->
         <div class="sidebar">
             <div class="server-header">
-                <div class="server-title" id="server-title">Loading...</div>
+                <div class="server-title" id="server-title" contenteditable="true">Loading...</div>
                 <div class="server-meta">
                     <div class="meta-item">
                         <i class="fas fa-eye"></i>
@@ -432,6 +442,10 @@
                     <div class="meta-item">
                         <i class="fas fa-code"></i>
                         <span id="server-files">0 files</span>
+                    </div>
+                    <div class="meta-item" id="server-status">
+                        <i class="fas fa-circle" style="color: #f59e0b;"></i>
+                        <span>Draft</span>
                     </div>
                 </div>
             </div>
@@ -450,13 +464,16 @@
 
             <div class="action-buttons">
                 <button class="btn btn-primary" id="btn-run">
-                    <i class="fas fa-play"></i> Run Server
+                    <i class="fas fa-play"></i> Preview
                 </button>
                 <button class="btn btn-success" id="btn-publish">
                     <i class="fas fa-rocket"></i> Publish
                 </button>
                 <button class="btn btn-outline" id="btn-save">
                     <i class="fas fa-save"></i> Save
+                </button>
+                <button class="btn btn-outline" id="btn-back">
+                    <i class="fas fa-arrow-left"></i> Back
                 </button>
             </div>
         </div>
@@ -468,8 +485,8 @@
             </div>
 
             <div class="editor-area">
-                <div class="code-editor" id="code-editor">
-                    <textarea id="code-editor-text"></textarea>
+                <div class="code-editor-container" id="code-editor-container">
+                    <textarea id="code-editor"></textarea>
                 </div>
                 <div class="preview-container" id="preview-container">
                     <div class="preview-toolbar">
@@ -477,32 +494,44 @@
                         <button class="btn btn-outline" id="btn-refresh">
                             <i class="fas fa-redo"></i> Refresh
                         </button>
+                        <button class="btn btn-outline" id="btn-open-tab">
+                            <i class="fas fa-external-link-alt"></i> Open
+                        </button>
                     </div>
-                    <iframe class="preview-frame" id="preview-frame"></iframe>
+                    <iframe class="preview-frame" id="preview-frame" sandbox="allow-scripts allow-same-origin"></iframe>
                 </div>
             </div>
 
             <div class="status-bar">
                 <div id="status-message">Ready</div>
                 <div id="cursor-position">Ln 1, Col 1</div>
+                <div id="save-status">Auto-save: <span style="color: #10b981;">Ready</span></div>
             </div>
         </div>
     </div>
 
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/htmlmixed/htmlmixed.min.js"></script>
+    
     <script>
-        // ==================== API CONFIG ====================
-        const API_BASE = '/api'; // Vercel functions are at /api/*
-
-        // ==================== STATE ====================
+        // ==================== CONFIG ====================
+        const API_BASE = '/api';
+        let editor = null;
         let currentServer = null;
         let currentFile = '/index.html';
         let files = {};
         let user = null;
         let unsavedChanges = false;
+        let autoSaveTimeout = null;
+        let lastSaveTime = null;
 
         // ==================== INITIALIZATION ====================
         document.addEventListener('DOMContentLoaded', async () => {
-            // Get user from localStorage (should be set after login)
+            // Get user from localStorage
             user = JSON.parse(localStorage.getItem('vibe_user'));
             if (!user) {
                 showToast('Please login first', 'error');
@@ -520,43 +549,50 @@
                 await createNewServer();
             }
 
+            // Initialize CodeMirror
+            initEditor();
+            
+            // Setup event listeners
             setupEventListeners();
+            
+            // Setup auto-save
+            setupAutoSave();
         });
 
-        // ==================== API FUNCTIONS ====================
+        // ==================== REAL API FUNCTIONS ====================
         async function loadServerFromAPI(serverId) {
             try {
-                showStatus('Loading server...');
+                showStatus('Loading server from database...');
                 
-                // Call Vercel function: /api/get-server
+                // REAL API CALL to get-server.js
                 const response = await fetch(`${API_BASE}/get-server?id=${serverId}`);
-                if (!response.ok) throw new Error('Failed to load server');
+                if (!response.ok) throw new Error('Failed to load server from database');
                 
                 const data = await response.json();
                 
-                // Update state with real data from Supabase
+                // Update state with REAL data from Supabase
                 currentServer = {
                     id: data.server.id,
                     name: data.server.name,
+                    description: data.server.description,
                     slug: data.server.slug,
-                    views: data.server.views || 0
+                    views: data.server.views || 0,
+                    created_at: data.server.created_at,
+                    owner: data.server.owner,
+                    published: !!data.server.slug
                 };
                 
                 // Files from server_files table
                 files = data.files || {};
                 
-                // If no files exist, create defaults
-                if (Object.keys(files).length === 0) {
-                    files = {
-                        '/index.html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>New Server</title>\n</head>\n<body>\n    <h1>Welcome to my server!</h1>\n</body>\n</html>',
-                        '/style.css': 'body { font-family: Arial, sans-serif; }',
-                        '/script.js': 'console.log("Server loaded");'
-                    };
-                }
+                // Ensure we have at least the basic files
+                if (!files['/index.html']) files['/index.html'] = getDefaultHTML();
+                if (!files['/style.css']) files['/style.css'] = getDefaultCSS();
+                if (!files['/script.js']) files['/script.js'] = getDefaultJS();
                 
                 updateUI();
                 loadFile(currentFile);
-                showToast('Server loaded successfully');
+                showToast('Server loaded from database successfully');
                 
             } catch (error) {
                 console.error('Load error:', error);
@@ -572,105 +608,63 @@
             currentServer = {
                 id: null,
                 name: 'New Server',
+                description: 'A server created with Vibe.net',
                 slug: null,
-                views: 0
+                views: 0,
+                published: false
             };
             
             files = {
-                '/index.html': `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Server | Vibe.net</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Welcome to My Server!</h1>
-        <p>Edit this HTML to customize your server.</p>
-        <button onclick="alert('Hello!')">Click Me</button>
-    </div>
-    <script src="/script.js"></script>
-</body>
-</html>`,
-                '/style.css': `body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.container {
-    background: white;
-    padding: 40px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-}
-
-h1 {
-    color: #333;
-    margin-bottom: 20px;
-}
-
-p {
-    color: #666;
-    margin-bottom: 30px;
-}
-
-button {
-    background: #3b82f6;
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-button:hover {
-    background: #2563eb;
-    transform: translateY(-2px);
-}`,
-                '/script.js': `// Server JavaScript
-console.log('Server loaded!');
-
-// Add interactivity
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM ready');
-    
-    // You can add more JavaScript here
-    // This runs when your server page loads
-});`
+                '/index.html': getDefaultHTML(),
+                '/style.css': getDefaultCSS(),
+                '/script.js': getDefaultJS()
             };
             
             updateUI();
-            loadFile(currentFile);
         }
 
         async function saveServerToAPI() {
             try {
-                showStatus('Saving...');
-                
                 if (!currentServer.id) {
-                    // First save - create new server
-                    await publishServer();
-                    return;
+                    // Can't save unpublished server
+                    showToast('Please publish the server first to save', 'warning');
+                    return false;
                 }
                 
-                // Update existing server (would need an update-server API endpoint)
-                // For now, we'll just update locally
-                showToast('Saved locally (update API endpoint needed)', 'info');
+                showStatus('Saving to database...');
+                updateSaveStatus('Saving...', '#f59e0b');
+                
+                // REAL API CALL to update-server.js
+                const response = await fetch(`${API_BASE}/update-server`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        serverId: currentServer.id,
+                        userId: user.id,
+                        files: files,
+                        name: currentServer.name,
+                        description: currentServer.description
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Save failed');
+                }
+                
                 unsavedChanges = false;
+                lastSaveTime = new Date();
+                updateSaveStatus('Saved', '#10b981');
+                showToast('Server saved to database');
+                return true;
                 
             } catch (error) {
                 console.error('Save error:', error);
                 showToast(`Save failed: ${error.message}`, 'error');
+                updateSaveStatus('Failed', '#ef4444');
+                return false;
             } finally {
                 showStatus('Ready');
             }
@@ -678,17 +672,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         async function publishServer() {
             try {
-                showStatus('Publishing...');
-                
-                const name = document.getElementById('publish-name').value;
-                const description = document.getElementById('publish-desc').value;
+                const name = document.getElementById('publish-name').value.trim();
+                const description = document.getElementById('publish-desc').value.trim();
                 const category = document.getElementById('publish-category').value;
                 
-                if (!name.trim()) {
+                if (!name) {
                     throw new Error('Server name is required');
                 }
                 
-                // Call Vercel function: /api/publish-server
+                showStatus('Publishing to Vibe.net...');
+                updateSaveStatus('Publishing...', '#f59e0b');
+                
+                // REAL API CALL to publish-server.js
                 const response = await fetch(`${API_BASE}/publish-server`, {
                     method: 'POST',
                     headers: {
@@ -718,6 +713,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentServer.id = data.serverId;
                 currentServer.slug = data.slug;
                 currentServer.name = name;
+                currentServer.description = description;
                 currentServer.published = true;
                 
                 // Update URL
@@ -727,9 +723,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 updateUI();
                 hideModal('publish-modal');
+                updateSaveStatus('Published', '#10b981');
                 showToast('Server published successfully!');
                 
-                // Open server in new tab
+                // Open server in new tab after 1 second
                 setTimeout(() => {
                     window.open(`/server/${data.slug}`, '_blank');
                 }, 1000);
@@ -737,9 +734,74 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (error) {
                 console.error('Publish error:', error);
                 showToast(`Publish failed: ${error.message}`, 'error');
+                updateSaveStatus('Failed', '#ef4444');
             } finally {
                 showStatus('Ready');
             }
+        }
+
+        // ==================== EDITOR FUNCTIONS ====================
+        function initEditor() {
+            editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+                lineNumbers: true,
+                mode: 'htmlmixed',
+                theme: 'material-darker',
+                lineWrapping: true,
+                autoCloseTags: true,
+                matchBrackets: true,
+                extraKeys: {
+                    "Ctrl-S": saveServerToAPI,
+                    "Cmd-S": saveServerToAPI,
+                    "Ctrl-P": () => showModal('publish-modal'),
+                    "Cmd-P": () => showModal('publish-modal')
+                }
+            });
+
+            // Set initial content
+            loadFile(currentFile);
+
+            // Listen for changes
+            editor.on('change', () => {
+                files[currentFile] = editor.getValue();
+                unsavedChanges = true;
+                updateSaveStatus('Unsaved', '#f59e0b');
+                
+                // Update preview if visible
+                if (document.getElementById('preview-container').classList.contains('active')) {
+                    updatePreview();
+                }
+            });
+
+            // Update cursor position
+            editor.on('cursorActivity', () => {
+                const cursor = editor.getCursor();
+                document.getElementById('cursor-position').textContent = `Ln ${cursor.line + 1}, Col ${cursor.ch + 1}`;
+            });
+        }
+
+        function loadFile(filePath) {
+            currentFile = filePath;
+            const content = files[filePath] || '';
+            editor.setValue(content);
+            
+            // Update editor mode based on file extension
+            const ext = filePath.split('.').pop().toLowerCase();
+            const mode = getModeForExtension(ext);
+            editor.setOption('mode', mode);
+            
+            updateUI();
+        }
+
+        function getModeForExtension(ext) {
+            const modes = {
+                'html': 'htmlmixed',
+                'htm': 'htmlmixed',
+                'css': 'css',
+                'js': 'javascript',
+                'json': 'javascript',
+                'md': 'markdown'
+            };
+            return modes[ext] || 'htmlmixed';
         }
 
         // ==================== UI FUNCTIONS ====================
@@ -747,6 +809,14 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('server-title').textContent = currentServer.name;
             document.getElementById('server-views').textContent = `${currentServer.views} views`;
             document.getElementById('server-files').textContent = `${Object.keys(files).length} files`;
+            
+            // Update status
+            const statusEl = document.getElementById('server-status');
+            if (currentServer.published) {
+                statusEl.innerHTML = '<i class="fas fa-circle" style="color: #10b981;"></i><span>Published</span>';
+            } else {
+                statusEl.innerHTML = '<i class="fas fa-circle" style="color: #f59e0b;"></i><span>Draft</span>';
+            }
             
             // Update file tree
             const fileTree = document.getElementById('file-tree');
@@ -814,33 +884,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 tab.innerHTML = `
                     <i class="${getFileIcon(fileName)}"></i>
                     <span>${fileName}</span>
-                    ${filePath !== '/index.html' ? 
-                        '<span class="tab-close" onclick="closeTab(\'' + filePath + '\')"><i class="fas fa-times"></i></span>' : ''
-                    }
                 `;
                 
-                tab.addEventListener('click', (e) => {
-                    if (!e.target.closest('.tab-close')) {
-                        switchFile(filePath);
-                    }
+                tab.addEventListener('click', () => {
+                    switchFile(filePath);
                 });
                 
                 tabsContainer.appendChild(tab);
             });
         }
 
-        function loadFile(filePath) {
-            currentFile = filePath;
-            const content = files[filePath] || '';
-            document.getElementById('code-editor-text').value = content;
-            
-            updateUI();
-            updatePreview();
-        }
-
         function switchFile(filePath) {
             // Save current file content
-            files[currentFile] = document.getElementById('code-editor-text').value;
+            files[currentFile] = editor.getValue();
             
             // Load new file
             loadFile(filePath);
@@ -852,7 +908,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            if (!confirm(`Delete ${filePath}?`)) return;
+            if (!confirm(`Delete ${filePath}? This will remove it from the server.`)) return;
             
             delete files[filePath];
             
@@ -862,12 +918,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             updateUI();
+            unsavedChanges = true;
             showToast(`Deleted ${filePath}`);
-        }
-
-        function closeTab(filePath) {
-            if (filePath === '/index.html') return;
-            deleteFile(filePath);
         }
 
         function updatePreview() {
@@ -883,14 +935,274 @@ document.addEventListener('DOMContentLoaded', function() {
             iframe.srcdoc = fullHTML;
         }
 
-        // ==================== UTILITIES ====================
+        function openPreviewInNewTab() {
+            const html = files['/index.html'] || '';
+            const css = files['/style.css'] || '';
+            const js = files['/script.js'] || '';
+            
+            const fullHTML = html.replace('</head>', 
+                `<style>${css}</style></head>`).replace('</body>',
+                `<script>${js}</script></body>`);
+            
+            const blob = new Blob([fullHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        }
+
+        // ==================== UTILITY FUNCTIONS ====================
+        function getDefaultHTML() {
+            return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Server | Vibe.net</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Welcome to My Server!</h1>
+            <p class="subtitle">Built with Vibe.net Server Creator</p>
+        </header>
+        
+        <main>
+            <div class="card">
+                <h2><i class="fas fa-star"></i> Features</h2>
+                <ul>
+                    <li>Fully customizable HTML/CSS/JS</li>
+                    <li>Live preview while editing</li>
+                    <li>Share with unique URL</li>
+                    <li>No server setup required</li>
+                </ul>
+            </div>
+            
+            <div class="card">
+                <h2><i class="fas fa-code"></i> Get Started</h2>
+                <p>Edit this HTML, CSS, and JavaScript in the editor to customize your server.</p>
+                <button id="demo-btn" class="action-btn">
+                    <i class="fas fa-magic"></i> Click Me!
+                </button>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Powered by <strong>Vibe.net</strong> - Create amazing servers without code</p>
+        </footer>
+    </div>
+    
+    <script src="/script.js"></script>
+</body>
+</html>`;
+        }
+
+        function getDefaultCSS() {
+            return `* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 50px;
+    color: white;
+}
+
+header h1 {
+    font-size: 3rem;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+.card {
+    background: white;
+    border-radius: 16px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card h2 {
+    color: #4f46e5;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+ul {
+    list-style: none;
+    padding-left: 20px;
+}
+
+li {
+    margin-bottom: 12px;
+    position: relative;
+    padding-left: 25px;
+}
+
+li:before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: #10b981;
+    font-weight: bold;
+}
+
+.action-btn {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+footer {
+    text-align: center;
+    margin-top: 50px;
+    color: rgba(255,255,255,0.8);
+}
+
+footer strong {
+    color: white;
+}`;
+        }
+
+        function getDefaultJS() {
+            return `// Server JavaScript
+console.log('🚀 Server loaded successfully!');
+
+// Demo button functionality
+const demoBtn = document.getElementById('demo-btn');
+if (demoBtn) {
+    let clickCount = 0;
+    
+    demoBtn.addEventListener('click', function() {
+        clickCount++;
+        
+        // Update button text
+        demoBtn.innerHTML = \`<i class="fas fa-magic"></i> Clicked \${clickCount} time\${clickCount === 1 ? '' : 's'}!\`;
+        
+        // Add some visual feedback
+        demoBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        
+        // Create confetti effect on every 3rd click
+        if (clickCount % 3 === 0) {
+            createConfetti();
+        }
+        
+        // Reset button after 1 second
+        setTimeout(() => {
+            demoBtn.innerHTML = '<i class="fas fa-magic"></i> Click Me!';
+            demoBtn.style.background = '';
+        }, 1000);
+    });
+}
+
+// Simple confetti effect
+function createConfetti() {
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    
+    for (let i = 0; i < 30; i++) {
+        const confetti = document.createElement('div');
+        confetti.style.position = 'fixed';
+        confetti.style.width = '10px';
+        confetti.style.height = '10px';
+        confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.borderRadius = '50%';
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.top = '-10px';
+        confetti.style.zIndex = '9999';
+        confetti.style.pointerEvents = 'none';
+        document.body.appendChild(confetti);
+        
+        // Animation
+        const animation = confetti.animate([
+            { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
+            { transform: \`translateY(100vh) rotate(\${Math.random() * 360}deg)\`, opacity: 0 }
+        ], {
+            duration: 1000 + Math.random() * 1000,
+            easing: 'cubic-bezier(0.215, 0.610, 0.355, 1)'
+        });
+        
+        animation.onfinish = () => confetti.remove();
+    }
+}
+
+// Server initialization
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ Server initialization complete');
+    console.log('📁 Edit files in the Vibe.net editor to customize');
+});`;
+        }
+
+        function setupAutoSave() {
+            // Auto-save every 30 seconds if there are unsaved changes
+            setInterval(async () => {
+                if (unsavedChanges && currentServer.id) {
+                    await saveServerToAPI();
+                }
+            }, 30000);
+        }
+
+        function updateSaveStatus(status, color) {
+            const saveStatus = document.querySelector('#save-status span');
+            saveStatus.textContent = status;
+            saveStatus.style.color = color;
+        }
+
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
             const icon = document.getElementById('toast-icon');
             const text = document.getElementById('toast-message');
             
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle'
+            };
+            
             toast.className = `toast ${type}`;
-            icon.className = type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-check-circle';
+            icon.className = `fas ${icons[type] || icons.success}`;
             text.textContent = message;
             
             toast.classList.add('show');
@@ -911,23 +1223,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // ==================== EVENT LISTENERS ====================
         function setupEventListeners() {
-            // Code editor changes
-            document.getElementById('code-editor-text').addEventListener('input', (e) => {
+            // Server title editing
+            document.getElementById('server-title').addEventListener('blur', (e) => {
+                currentServer.name = e.target.textContent;
                 unsavedChanges = true;
-                files[currentFile] = e.target.value;
-                updatePreview();
             });
 
             // Publish button
             document.getElementById('btn-publish').addEventListener('click', () => {
                 document.getElementById('publish-name').value = currentServer.name;
+                document.getElementById('publish-desc').value = currentServer.description;
                 showModal('publish-modal');
             });
 
             // Save button
             document.getElementById('btn-save').addEventListener('click', saveServerToAPI);
 
-            // Run button
+            // Run/Preview button
             document.getElementById('btn-run').addEventListener('click', () => {
                 document.getElementById('preview-container').classList.add('active');
                 updatePreview();
@@ -936,14 +1248,25 @@ document.addEventListener('DOMContentLoaded', function() {
             // Refresh preview
             document.getElementById('btn-refresh').addEventListener('click', updatePreview);
 
+            // Open in new tab
+            document.getElementById('btn-open-tab').addEventListener('click', openPreviewInNewTab);
+
             // New file button
             document.getElementById('btn-new-file').addEventListener('click', () => {
-                const fileName = prompt('Enter file path (e.g., /script2.js):');
+                const fileName = prompt('Enter file path (e.g., /about.html, /app.js, /styles/main.css):');
                 if (fileName && fileName.startsWith('/')) {
                     files[fileName] = '';
                     updateUI();
                     loadFile(fileName);
                 }
+            });
+
+            // Back button
+            document.getElementById('btn-back').addEventListener('click', () => {
+                if (unsavedChanges) {
+                    if (!confirm('You have unsaved changes. Leave anyway?')) return;
+                }
+                window.location.href = currentServer.slug ? `/server/${currentServer.slug}` : '/';
             });
 
             // Publish modal buttons
@@ -962,6 +1285,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else if (e.key === 'p') {
                         e.preventDefault();
                         document.getElementById('btn-publish').click();
+                    } else if (e.key === 'b') {
+                        e.preventDefault();
+                        document.getElementById('btn-back').click();
                     }
                 }
             });
