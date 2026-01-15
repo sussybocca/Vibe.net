@@ -1,187 +1,666 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vibe.net</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css">
-<style>
-  body { font-family: sans-serif; margin: 0; padding: 0; }
-  .page { display: none; padding: 20px; }
-  .page.active { display: block; }
-  #server-grid, #my-servers { display: flex; flex-wrap: wrap; gap: 10px; }
-  .server-card { border: 1px solid #ccc; padding: 10px; cursor: pointer; width: 150px; text-align: center; }
-  .editor-wrapper { height: 400px; border: 1px solid #ccc; margin-bottom: 10px; }
-  #file-tabs button { margin-right: 5px; }
-  #feedback-tab textarea { width: 100%; height: 80px; margin-bottom: 5px; }
-  #plane-ui { margin-top: 10px; }
-  .red-button { background-color: red; color: white; margin-right: 5px; padding: 5px 10px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibe.net - Create & Share Servers</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            text-decoration: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-primary:hover {
+            background: #f8fafc;
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+        }
+
+        .btn-outline:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 100px 0;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto 40px;
+            opacity: 0.9;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+        }
+
+        .hero-buttons .btn {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+        }
+
+        /* Features */
+        .features {
+            padding: 80px 0;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin: 40px 0;
+        }
+
+        .features h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 50px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-card {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #a78bfa;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+
+        /* Trending Servers */
+        .trending {
+            padding: 80px 0;
+        }
+
+        .trending h2 {
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+        }
+
+        .servers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .server-card {
+            background: white;
+            color: #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .server-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .server-image {
+            height: 180px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+        }
+
+        .server-content {
+            padding: 20px;
+        }
+
+        .server-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #0f172a;
+        }
+
+        .server-description {
+            color: #64748b;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .server-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        /* Footer */
+        footer {
+            padding: 40px 0;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: 80px;
+        }
+
+        footer p {
+            opacity: 0.7;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            color: #1e293b;
+            border-radius: 12px;
+            padding: 30px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+            color: #0f172a;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #475569;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        /* Auth Forms */
+        #auth-container {
+            display: none;
+        }
+
+        #auth-container.active {
+            display: block;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #cbd5e1;
+        }
+
+        .auth-tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+        }
+
+        .auth-tab.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+    </style>
 </head>
 <body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">
+                    <i class="fas fa-server"></i>
+                    Vibe.net
+                </a>
+                <div class="nav-buttons">
+                    <a href="/explore" class="btn btn-outline">
+                        <i class="fas fa-compass"></i> Explore
+                    </a>
+                    <button class="btn btn-primary" id="create-server-btn">
+                        <i class="fas fa-plus"></i> Create Server
+                    </button>
+                    <button class="btn btn-outline" id="auth-btn">
+                        <i class="fas fa-user"></i> Profile
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
 
-<!-- Header -->
-<div id="header">
-  <h1>Vibe.net</h1>
-  <button id="profile-btn">Profile</button>
-</div>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h1>Create & Share Servers Instantly</h1>
+            <p>Build, customize, and deploy web servers with our advanced editor. No setup required. Share with one click.</p>
+            <div class="hero-buttons">
+                <a href="/explore" class="btn btn-outline">
+                    <i class="fas fa-compass"></i> Explore Servers
+                </a>
+                <button class="btn btn-primary" id="start-creating-btn">
+                    <i class="fas fa-rocket"></i> Start Creating
+                </button>
+            </div>
+        </div>
+    </section>
 
-<!-- Home Page -->
-<div id="home-page" class="page active">
-  <h2>All Servers</h2>
-  <input type="text" id="server-search" placeholder="Search servers..." style="padding:5px; width:100%; max-width:400px; margin-bottom: 10px;">
-  <div id="server-grid"></div>
-</div>
+    <!-- Features -->
+    <section class="features">
+        <div class="container">
+            <h2>Why Choose Vibe.net?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h3>Advanced Editor</h3>
+                    <p>Real-time HTML/CSS/JS editing with syntax highlighting and live preview.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3>Instant Deployment</h3>
+                    <p>Publish servers with unique URLs in seconds. No configuration needed.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-share-alt"></i>
+                    </div>
+                    <h3>Easy Sharing</h3>
+                    <p>Share your servers with anyone. No accounts needed to view.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3>Community</h3>
+                    <p>Discover amazing servers created by our growing community.</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<!-- Profile Page -->
-<div id="profile-page" class="page">
-  <h2>My Profile</h2>
-  <div id="auth-container"></div>
-  <hr>
-  <button id="create-server-btn">Create New Server</button>
-  <h3>My Servers:</h3>
-  <div id="my-servers"></div>
-  <button id="back-home">Back to Home</button>
-</div>
+    <!-- Trending Servers -->
+    <section class="trending">
+        <div class="container">
+            <h2>Trending Servers</h2>
+            <div class="servers-grid" id="trending-servers">
+                <!-- Servers loaded via API -->
+            </div>
+        </div>
+    </section>
 
-<!-- Editor Page -->
-<div id="editor-page" class="page">
-  <h2>Server Editor</h2>
-  <div id="editor-container">
-    <!-- Editor Tabs -->
-    <div id="editor-tabs">
-      <button data-editor="monaco">Monaco</button>
-      <button data-editor="codemirror">CodeMirror</button>
-      <button data-editor="vscode">VS Code</button>
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>© 2024 Vibe.net. Create amazing servers without limits.</p>
+        </div>
+    </footer>
+
+    <!-- Auth Modal -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal">
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Login</button>
+                <button class="auth-tab" data-tab="register">Register</button>
+            </div>
+            
+            <div id="login-form" class="auth-form">
+                <h2>Login</h2>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" class="form-control" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" class="form-control" placeholder="••••••••">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" id="close-auth">Cancel</button>
+                    <button class="btn btn-success" id="submit-login">Login</button>
+                </div>
+            </div>
+
+            <div id="register-form" class="auth-form" style="display: none;">
+                <h2>Register</h2>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="register-username" class="form-control" placeholder="Choose a username">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="register-email" class="form-control" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="register-password" class="form-control" placeholder="••••••••">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" id="close-register">Cancel</button>
+                    <button class="btn btn-success" id="submit-register">Create Account</button>
+                </div>
+            </div>
+        </div>
     </div>
-    <!-- File Management -->
-    <div id="file-management">
-      <button id="create-file">New File</button>
-      <button id="delete-file">Delete File</button>
-      <button id="rename-file">Rename File</button>
-    </div>
-    <div id="file-tabs"></div>
-    <!-- Editors -->
-    <div id="monaco-editor" class="editor-wrapper"></div>
-    <div id="codemirror-editor" class="editor-wrapper"></div>
-    <div id="vscode-editor" class="editor-wrapper"></div>
-    <!-- Feedback -->
-    <div id="feedback-tab">
-      <h3>Server Feedback</h3>
-      <div id="feedback-list"></div>
-      <textarea id="feedback-input" placeholder="Write your feedback..."></textarea>
-      <button id="feedback-submit">Submit Feedback</button>
-    </div>
-    <!-- Plane UI -->
-    <div id="plane-ui">
-      <div id="red-buttons">
-        <button class="red-button">1</button>
-        <button class="red-button">2</button>
-        <button class="red-button">3</button>
-        <button class="red-button">4</button>
-        <button class="red-button">5</button>
-      </div>
-      <div id="lever-container">
-        <button id="run-lever">RUN</button>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- Editor CDNs -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.41.0/min/vs/loader.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/javascript/javascript.min.js"></script>
+    <script>
+        // State
+        let currentUser = null;
 
-<!-- React Components & Serverless Integration -->
-<script type="module">
-import RegisterForm from './src/RegisterForm.jsx';
-import LoginForm from './src/LoginForm.jsx';
-import { NetlifySecrets } from './src/NetlifySecrets.jsx';
+        // DOM Elements
+        const authModal = document.getElementById('auth-modal');
+        const createServerBtn = document.getElementById('create-server-btn');
+        const authBtn = document.getElementById('auth-btn');
+        const startCreatingBtn = document.getElementById('start-creating-btn');
+        const trendingServers = document.getElementById('trending-servers');
 
-const secrets = await NetlifySecrets();
-console.log("Secrets loaded:", secrets);
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            loadTrendingServers();
+            setupEventListeners();
+        });
 
-window.currentUser = null;
+        // Check authentication
+        function checkAuth() {
+            const user = localStorage.getItem('vibe_user');
+            if (user) {
+                currentUser = JSON.parse(user);
+                updateAuthUI();
+            }
+        }
 
-// Auth Forms
-const authContainer = document.getElementById('auth-container');
-const registerFormEl = RegisterForm({ onRegister: loadMyServers });
-const loginFormEl = LoginForm({ onLogin: loadMyServers });
-authContainer.appendChild(registerFormEl);
-authContainer.appendChild(loginFormEl);
+        // Update UI based on auth state
+        function updateAuthUI() {
+            if (currentUser) {
+                authBtn.innerHTML = `<i class="fas fa-user"></i> ${currentUser.username}`;
+            }
+        }
 
-// Page Navigation
-const homePage = document.getElementById('home-page');
-const profilePage = document.getElementById('profile-page');
-const editorPage = document.getElementById('editor-page');
-document.getElementById('profile-btn').addEventListener('click', () => {
-  homePage.classList.remove('active');
-  profilePage.classList.add('active');
-});
-document.getElementById('back-home').addEventListener('click', () => {
-  profilePage.classList.remove('active');
-  homePage.classList.add('active');
-});
+        // Load trending servers
+        async function loadTrendingServers() {
+            try {
+                const response = await fetch('/api/explore?sort=popular&limit=6');
+                const data = await response.json();
+                
+                trendingServers.innerHTML = '';
+                data.servers.forEach(server => {
+                    const card = createServerCard(server);
+                    trendingServers.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading servers:', error);
+                trendingServers.innerHTML = '<p style="color: white; text-align: center;">Error loading servers. Please try again.</p>';
+            }
+        }
 
-// Create Server
-document.getElementById('create-server-btn').addEventListener('click', async () => {
-  if (!window.currentUser) return alert("Please login first.");
-  const name = prompt("Enter server name:");
-  if (!name) return;
-  const res = await fetch("/.netlify/functions/publish-server", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ownerId: window.currentUser.id, name }),
-  });
-  const data = await res.json();
-  if (data.success) loadMyServers();
-  else alert(data.error);
-});
+        // Create server card HTML
+        function createServerCard(server) {
+            const div = document.createElement('div');
+            div.className = 'server-card';
+            div.innerHTML = `
+                <div class="server-image">
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="server-content">
+                    <div class="server-title">${server.title}</div>
+                    <div class="server-description">${server.description || 'No description'}</div>
+                    <div class="server-meta">
+                        <span><i class="fas fa-user"></i> ${server.owner?.username || 'Anonymous'}</span>
+                        <span><i class="fas fa-eye"></i> ${server.views} views</span>
+                    </div>
+                </div>
+            `;
+            div.addEventListener('click', () => {
+                window.open(`/server/${server.slug}`, '_blank');
+            });
+            return div;
+        }
 
-// Load Servers
-async function loadServers() {
-  const res = await fetch("/.netlify/functions/get-servers");
-  const servers = await res.json();
-  const grid = document.getElementById('server-grid');
-  grid.innerHTML = '';
-  servers.forEach(server => {
-    const div = document.createElement('div');
-    div.className = 'server-card';
-    div.textContent = `${server.name} by ${server.owner_name}`;
-    div.onclick = () => openEditor(server);
-    grid.appendChild(div);
-  });
-}
+        // Create new server
+        async function createNewServer() {
+            if (!currentUser) {
+                showAuthModal();
+                return;
+            }
 
-// Load My Servers
-async function loadMyServers() {
-  if (!window.currentUser) return;
-  const res = await fetch("/.netlify/functions/get-servers");
-  const servers = await res.json();
-  const myDiv = document.getElementById('my-servers');
-  myDiv.innerHTML = '';
-  servers.filter(s => s.owner_id === window.currentUser.id).forEach(server => {
-    const div = document.createElement('div');
-    div.className = 'server-card';
-    div.textContent = server.name;
-    div.onclick = () => openEditor(server);
-    myDiv.appendChild(div);
-  });
-}
+            // Redirect to editor
+            window.location.href = '/editor';
+        }
 
-// Open Editor
-function openEditor(server) {
-  homePage.classList.remove('active');
-  profilePage.classList.remove('active');
-  editorPage.classList.add('active');
-  console.log("Opening server:", server);
-  // TODO: populate your editors with server.html, server.css, server.js
-}
+        // Auth functions
+        async function login(email, password) {
+            try {
+                // This would connect to your auth API
+                // For now, simulate login
+                const user = {
+                    id: 'user_' + Date.now(),
+                    username: email.split('@')[0],
+                    email: email
+                };
+                
+                localStorage.setItem('vibe_user', JSON.stringify(user));
+                currentUser = user;
+                updateAuthUI();
+                hideAuthModal();
+                showToast('Logged in successfully');
+            } catch (error) {
+                showToast('Login failed: ' + error.message, 'error');
+            }
+        }
 
-// Initial load
-loadServers();
-</script>
+        async function register(username, email, password) {
+            try {
+                // This would connect to your auth API
+                // For now, simulate registration
+                const user = {
+                    id: 'user_' + Date.now(),
+                    username: username,
+                    email: email
+                };
+                
+                localStorage.setItem('vibe_user', JSON.stringify(user));
+                currentUser = user;
+                updateAuthUI();
+                hideAuthModal();
+                showToast('Account created successfully');
+            } catch (error) {
+                showToast('Registration failed: ' + error.message, 'error');
+            }
+        }
 
+        // Modal functions
+        function showAuthModal() {
+            authModal.classList.add('active');
+        }
+
+        function hideAuthModal() {
+            authModal.classList.remove('active');
+        }
+
+        // Toast function
+        function showToast(message, type = 'success') {
+            // Simple toast implementation
+            alert(message);
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            // Create server button
+            createServerBtn.addEventListener('click', createNewServer);
+            startCreatingBtn.addEventListener('click', createNewServer);
+
+            // Auth button
+            authBtn.addEventListener('click', showAuthModal);
+
+            // Auth modal
+            document.getElementById('close-auth').addEventListener('click', hideAuthModal);
+            document.getElementById('close-register').addEventListener('click', hideAuthModal);
+
+            // Login
+            document.getElementById('submit-login').addEventListener('click', () => {
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                if (email && password) {
+                    login(email, password);
+                }
+            });
+
+            // Register
+            document.getElementById('submit-register').addEventListener('click', () => {
+                const username = document.getElementById('register-username').value;
+                const email = document.getElementById('register-email').value;
+                const password = document.getElementById('register-password').value;
+                if (username && email && password) {
+                    register(username, email, password);
+                }
+            });
+
+            // Auth tabs
+            document.querySelectorAll('.auth-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Update active tab
+                    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Show correct form
+                    const tabId = tab.dataset.tab;
+                    document.getElementById('login-form').style.display = tabId === 'login' ? 'block' : 'none';
+                    document.getElementById('register-form').style.display = tabId === 'register' ? 'block' : 'none';
+                });
+            });
+        }
+    </script>
 </body>
 </html>
